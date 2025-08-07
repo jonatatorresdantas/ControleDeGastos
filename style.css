@@ -162,14 +162,16 @@ body {
 }
 
 .btn-danger {
-    background: none;
-    border: none;
-    color: #ef4444;
-    padding: 4px;
+    background: #ef4444;
+    color: white;
+    padding: 8px;
+    border-radius: 6px;
+    transition: all 0.2s;
 }
 
 .btn-danger:hover {
-    color: #dc2626;
+    background: #dc2626;
+    transform: translateY(-1px);
 }
 
 .category-item {

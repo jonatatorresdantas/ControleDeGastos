@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Planilha de Gastos Mensais</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.4.15/vue.global.prod.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.1/umd/lucide.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app">
+        <div class="container">
+            <h1 class="title">Controle de Gastos Mensais</h1>
+
+            <div class="summary-cards">
+                <div class="card summary-card green">
+                    <div class="summary-text">
+                        <p>Total Entradas</p>
+                        <div class="summary-amount">R$ {{ summary.entradas.toFixed(2) }}</div>
+                    </div>
+                    <i data-lucide="trending-up" class="icon"></i>
+                </div>
+
+                <div class="card summary-card red">
+                    <div class="summary-text">
+                        <p>Total Saídas</p>
+                        <div class="summary-amount">R$ {{ summary.saidas.toFixed(2) }}</div>
+                    </div>
+                    <i data-lucide="trending-down" class="icon"></i>
+                </div>
+
+                <div class="card summary-card" :class="summary.saldo >= 0 ? 'blue' : 'orange'">
+                    <div class="summary-text">
+                        <p>Saldo</p>
+                        <div class="summary-amount">R$ {{ summary.saldo.toFixed(2) }}</div>
+                    </div>
+                    <i data-lucide="dollar-sign" class="icon"></i>
+                </div>
+            </div>
+
+            <div class="main-content">
+                <div class="card form-section">
+                    <h2>Nova Transação</h2>
+                    
+                    <div class="form-group">
+                        <input
+                            type="text"
+                            placeholder="Descrição"
+                            v-model="description"
+                            class="form-input"
+                        />
+                    </div>
+                    
+                    <div class="form-group">
+                        <input
+                            type="number"
+                            placeholder="Valor"
+                            v-model="amount"
+                            step="0.01"
+                            class="form-input"
+                        />
+                    </div>
+                    
+                    <div class="form-group">
+                        <select v-model="category" class="form-input">
+                            <option value="">Selecione a categoria</option>
+                            <option v-for="cat in categories" :key="cat" :value="cat">{{ cat }}</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <div class="radio-group">
+                            <label class="radio-item">
+                                <input
+                                    type="radio"
+                                    value="entrada"
+                                    v-model="type"
+                                />
+                                Entrada
+                            </label>
+                            <label class="radio-item">
+                                <input
+                                    type="radio"
+                                    value="saida"
+                                    v-model="type"
+                                />
+                                Saída
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <input
+                            type="date"
+                            v-model="date"
+                            class="form-input"
+                        />
+                    </div>
+                    
+                    <button @click="addTransaction" class="btn btn-primary">
+                        <i data-lucide="plus" style="width: 16px; height: 16px;"></i>
+                        Adicionar Transação
+                    </button>
+                </div>
+
+                <div class="card category-section">
+                    <h2>Gastos por Categoria</h2>
+                    
+                    <div v-if="Object.keys(summary.categoryTotals).length > 0">
+                        <div v-for="(total, category) in summary.categoryTotals" :key="category" class="category-item">
+                            <span>{{ category }}</span>
+                            <span class="category-amount">R$ {{ total.toFixed(2) }}</span>
+                        </div>
+                    </div>
+                    <div v-else class="empty-state">
+                        Nenhuma categoria de gasto registrada
+                    </div>
+                </div>
+            </div>
+
+            <div class="card table-section">
+                <div class="table-header">
+                    <h2>Histórico de Transações</h2>
+                    <div class="export-buttons">
+                        <button @click="exportToCSV" class="btn btn-success">
+                            <i data-lucide="download" style="width: 16px; height: 16px;"></i>
+                            Exportar Transações
+                        </button>
+                        <button @click="exportSummaryToCSV" class="btn btn-purple">
+                            <i data-lucide="download" style="width: 16px; height: 16px;"></i>
+                            Exportar Resumo
+                        </button>
+                    </div>
+                </div>
+                
+                <div v-if="transactions.length > 0">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Data</th>
+                                <th>Descrição</th>
+                                <th>Categoria</th>
+                                <th>Tipo</th>
+                                <th class="text-right">Valor</th>
+                                <th class="text-center">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="transaction in transactions" :key="transaction.id">
+                                <td>{{ formatDate(transaction.date) }}</td>
+                                <td>{{ transaction.description }}</td>
+                                <td>{{ transaction.category }}</td>
+                                <td>
+                                    <span 
+                                        class="transaction-type"
+                                        :class="transaction.type === 'entrada' ? 'type-entrada' : 'type-saida'"
+                                    >
+                                        {{ transaction.type === 'entrada' ? 'Entrada' : 'Saída' }}
+                                    </span>
+                                </td>
+                                <td 
+                                    class="text-right"
+                                    :class="transaction.type === 'entrada' ? 'amount-entrada' : 'amount-saida'"
+                                >
+                                    R$ {{ transaction.amount.toFixed(2) }}
+                                </td>
+                                <td class="text-center">
+                                    <button @click="deleteTransaction(transaction.id)" class="btn btn-danger">
+                                        <i data-lucide="trash-2" style="width: 16px; height: 16px;"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div v-else class="empty-state">
+                    Nenhuma transação registrada
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
